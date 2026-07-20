@@ -1,0 +1,35 @@
+# Ежедневный бот: погода друг у друга + круглые даты + месяцеверсарии.
+# Работает, если эта папка залита в репозиторий GitHub (можно приватный).
+#
+# Время в cron — всегда UTC:
+#   0 3 * * *  → 09:00 Бишкек — сообщение Суле (погода в Нидерландах)
+#   0 5 * * *  → 07:00 Нидерланды (летом; зимой 06:00) — сообщение Сабинчик
+#
+# Запустить вручную для проверки: вкладка Actions → Love bot → Run workflow.
+name: Love bot
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      recipient:
+        description: "Кому отправить: sulia | sabina | both"
+        default: "both"
+        required: true
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Send daily message
+        # При желании можно убрать токен из кода и хранить в секрете:
+        # Settings → Secrets and variables → Actions → New secret → BOT_TOKEN
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: node bot/daily.js ${{ github.event_name == 'workflow_dispatch' && inputs.recipient || (github.event.schedule == '0 3 * * *' && 'sulia' || 'sabina') }}

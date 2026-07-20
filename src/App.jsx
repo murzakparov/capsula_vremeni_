@@ -164,14 +164,10 @@ function tgTarget() {
   return empty(token) || empty(chatId) ? null : { token, chatId };
 }
 
-// batch — сколько нажатий склеено в это уведомление, total — счётчик всего
-function sendTelegramHug(batch, total) {
+// Отправка произвольного текста второму человеку
+function sendTelegram(text) {
   const cfg = tgTarget();
   if (!cfg) return; // токен/chat_id не заполнены — работаем как раньше, без уведомлений
-  const name = VIEWER === "sabina" ? "Сабинчик" : "Суля";
-  const verb = VIEWER === "sabina" ? "обняла" : "обнял";
-  const times = batch > 1 ? ` ${batch} ${timesWord(batch)} подряд` : "";
-  const text = `🤗 ${name} только что ${verb} тебя${times}!\n❤️ Всего обнимашек: ${total}`;
   const url =
     "https://api.telegram.org/bot" +
     cfg.token +
@@ -182,8 +178,36 @@ function sendTelegramHug(batch, total) {
   try {
     fetch(url).catch(() => {});
   } catch {
-    /* нет сети — обнимашка останется локальной */
+    /* нет сети — уведомление не уйдёт, страница работает дальше */
   }
+}
+
+// batch — сколько нажатий склеено в это уведомление, total — счётчик всего
+function sendTelegramHug(batch, total) {
+  const name = VIEWER === "sabina" ? "Сабинчик" : "Суля";
+  const verb = VIEWER === "sabina" ? "обняла" : "обнял";
+  const times = batch > 1 ? ` ${batch} ${timesWord(batch)} подряд` : "";
+  sendTelegram(`🤗 ${name} только что ${verb} тебя${times}!\n❤️ Всего обнимашек: ${total}`);
+}
+
+function memoriesWord(n) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "воспоминание";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "воспоминания";
+  return "воспоминаний";
+}
+
+// batch — сколько воспоминаний открыто подряд (быстрые открытия склеиваются)
+function sendTelegramCapsule(batch) {
+  const name = VIEWER === "sabina" ? "Сабинчик" : "Суля";
+  const verb = VIEWER === "sabina" ? "открыла" : "открыл";
+  const readVerb = VIEWER === "sabina" ? "прочитала" : "прочитал";
+  const text =
+    batch > 1
+      ? `💌 ${name} сейчас читает вашу капсулу времени — ${readVerb} ${batch} ${memoriesWord(batch)} подряд`
+      : `💌 ${name} только что ${verb} вашу капсулу времени и читает воспоминание`;
+  sendTelegram(text);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -259,9 +283,19 @@ function TimeCapsule() {
   const [index, setIndex] = useState(null);
   const [visible, setVisible] = useState(true);
   const [busy, setBusy] = useState(false);
+  // Пинг в Telegram «открыл(а) капсулу»: быстрые открытия склеиваются в одно уведомление
+  const pingRef = useRef({ opens: 0, timer: null });
 
   const reveal = () => {
     if (busy) return;
+    const p = pingRef.current;
+    p.opens += 1;
+    if (p.timer) clearTimeout(p.timer);
+    p.timer = setTimeout(() => {
+      sendTelegramCapsule(p.opens);
+      p.opens = 0;
+      p.timer = null;
+    }, 2500);
     setBusy(true);
     setVisible(false);
     setTimeout(() => {
@@ -370,7 +404,7 @@ function HugButton() {
       <p className="hug-count text-xs mt-3" aria-live="polite">
         {count === 0
           ? VIEWER === "sulia"
-            ? "Обнимашки долетают до Нидерландов мгновенно — проверь"
+            ? "Обнимашки долетают до Нидерландов м��новенно — проверь"
             : "Обнимашки долетают до Бишкека мгновенно — проверь"
           : VIEWER === "sulia"
             ? `Ты обнял её уже ${count} ${timesWord(count)} ❤️`
