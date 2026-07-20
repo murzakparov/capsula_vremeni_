@@ -1,0 +1,334 @@
+/* ─── Тема: день/ночь по времени в Нидерландах ─── */
+
+html, body, #root { min-height: 100%; }
+body {
+  font-family: "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.font-serif {
+  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+}
+
+/* Цветовые токены */
+.app {
+  --canvas: #FBF6EE;
+  --card: rgba(255, 255, 255, 0.66);
+  --card-border: rgba(93, 74, 54, 0.12);
+  --ink: #3A332B;
+  --ink-soft: rgba(58, 51, 43, 0.66);
+  --ink-faint: rgba(58, 51, 43, 0.46);
+  --accent: #B3703F;
+  --accent-ink: #FFF9F1;
+  --glow: rgba(203, 138, 84, 0.28);
+  --card-blur: 14px;
+  background-color: var(--canvas);
+  color: var(--ink);
+  transition: background-color 1.4s ease, color 1.4s ease;
+}
+.app.night {
+  --canvas: #0C1322;
+  --card: rgba(23, 33, 56, 0.55);
+  --card-border: rgba(226, 214, 196, 0.14);
+  --ink: #ECE7DD;
+  --ink-soft: rgba(236, 231, 221, 0.66);
+  --ink-faint: rgba(236, 231, 221, 0.44);
+  --accent: #E3B07C;
+  --accent-ink: #2A1B0B;
+  --glow: rgba(227, 176, 124, 0.30);
+}
+
+/* Фоновые слои: мягкий кроссфейд между днём и ночью */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  transition: opacity 1.6s ease;
+}
+.backdrop--day {
+  opacity: 1;
+  background:
+    radial-gradient(60% 50% at 14% 6%, rgba(244, 196, 158, 0.5), transparent 66%),
+    radial-gradient(50% 45% at 88% 18%, rgba(233, 183, 186, 0.38), transparent 62%),
+    radial-gradient(80% 55% at 50% 112%, rgba(246, 227, 198, 0.85), transparent 72%),
+    linear-gradient(180deg, #FDFAF4 0%, #F6EBDC 100%);
+}
+.night .backdrop--day { opacity: 0; }
+.backdrop--night {
+  opacity: 0;
+  background:
+    radial-gradient(55% 45% at 82% -4%, rgba(96, 118, 188, 0.32), transparent 66%),
+    radial-gradient(45% 40% at 10% 16%, rgba(64, 86, 148, 0.26), transparent 62%),
+    radial-gradient(85% 60% at 50% 116%, rgba(32, 45, 79, 0.85), transparent 76%),
+    linear-gradient(180deg, #0E1628 0%, #0A101D 100%);
+}
+.night .backdrop--night { opacity: 1; }
+
+/* Звёзды — видны только ночью */
+.stars {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.6s ease;
+}
+.night .stars { opacity: 1; }
+.star {
+  position: absolute;
+  border-radius: 9999px;
+  background: #F2E8D5;
+  opacity: 0.2;
+  animation: twinkle 4s ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.85; }
+}
+
+/* Шапка */
+.eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  transition: color 1.4s ease;
+}
+.title {
+  font-size: clamp(2.6rem, 7vw, 4rem);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: 0.01em;
+}
+.title em { font-style: italic; }
+
+/* Карточки */
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 1.25rem;
+  backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+  box-shadow:
+    0 1px 2px rgba(15, 18, 26, 0.04),
+    0 22px 60px -22px var(--glow);
+  transition: background-color 1.4s ease, border-color 1.4s ease, box-shadow 1.4s ease;
+}
+
+/* Часы */
+.clock-label { color: var(--ink-faint); transition: color 1.4s ease; }
+.clock-time {
+  font-size: clamp(2.9rem, 6vw, 3.6rem);
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.clock-sec {
+  font-size: 0.42em;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  transition: color 1.4s ease;
+}
+.clock-date { color: var(--ink-soft); transition: color 1.4s ease; }
+.clock-icon { margin-right: 0.45em; color: var(--accent); transition: color 1.4s ease; }
+
+.clock-heart {
+  display: flex;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  user-select: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  width: 2.4rem;
+  height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.95rem;
+  box-shadow: 0 0 0 6px var(--canvas), 0 0 26px var(--glow);
+  transition: background-color 1.4s ease, color 1.4s ease, box-shadow 1.4s ease;
+  animation: heartbeat 2.4s ease-in-out infinite;
+}
+@media (max-width: 639px) {
+  .clock-heart { width: 2rem; height: 2rem; font-size: 0.8rem; }
+}
+.clock-heart:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+@keyframes heartbeat {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  12% { transform: translate(-50%, -50%) scale(1.12); }
+  24% { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Динамическая подпись */
+.mood {
+  max-width: 32rem;
+  font-size: 1.22rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  transition: color 1.4s ease;
+}
+
+/* Капсула */
+.capsule { position: relative; }
+.capsule-quote {
+  position: absolute;
+  top: -0.4rem;
+  left: 1.4rem;
+  font-size: 6rem;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.28;
+  pointer-events: none;
+  transition: color 1.4s ease;
+}
+.capsule-body {
+  min-height: 11.5rem;
+  width: 100%;
+}
+.capsule-text {
+  max-width: 34rem;
+  font-size: clamp(1.35rem, 3vw, 1.7rem);
+  font-weight: 500;
+  line-height: 1.42;
+  letter-spacing: 0.005em;
+}
+.capsule-text--intro { color: var(--ink-soft); transition: color 1.4s ease; }
+.capsule-date {
+  color: var(--ink-faint);
+  letter-spacing: 0.06em;
+  transition: color 1.4s ease;
+}
+
+/* Плавная смена текста */
+.fade { transition: opacity 0.45s ease, transform 0.45s ease; }
+.fade--in { opacity: 1; transform: translateY(0); }
+.fade--out { opacity: 0; transform: translateY(10px); }
+
+/* Кнопка */
+.btn {
+  min-height: 3rem;
+  padding: 0.85rem 1.9rem;
+  border-radius: 9999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 12px 30px -12px var(--glow);
+  transition: transform 0.2s ease, box-shadow 0.3s ease, background-color 1.4s ease, color 1.4s ease, opacity 0.3s ease;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 14px 34px -10px var(--glow); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.btn:disabled { opacity: 0.75; cursor: default; }
+.night .btn { box-shadow: 0 0 34px var(--glow); }
+
+/* Подвал */
+.footer { color: var(--ink-faint); letter-spacing: 0.04em; transition: color 1.4s ease; }
+
+
+/* Счётчик «мы вместе уже N дней» */
+.together {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.5rem 1.15rem;
+  border: 1px solid var(--card-border);
+  border-radius: 9999px;
+  background: var(--card);
+  backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+  letter-spacing: 0.04em;
+  transition: background-color 1.4s ease, border-color 1.4s ease, color 1.4s ease;
+}
+.together-num {
+  color: var(--accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: color 1.4s ease;
+}
+
+/* Обнимашки */
+.btn--ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  box-shadow: none;
+}
+.btn--ghost:hover { box-shadow: 0 10px 26px -14px var(--glow); }
+.night .btn--ghost { box-shadow: none; }
+.night .btn--ghost:hover { box-shadow: 0 0 26px var(--glow); }
+.hug-count { color: var(--ink-faint); letter-spacing: 0.04em; transition: color 1.4s ease; }
+.hug-hearts {
+  position: absolute;
+  inset: -8rem 0 0 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.hug-heart {
+  position: absolute;
+  bottom: 0;
+  opacity: 0;
+  line-height: 1;
+  animation: hug-float ease-out forwards;
+  will-change: transform, opacity;
+}
+@keyframes hug-float {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translate(var(--drift, 0px), -11rem) scale(1.06); opacity: 0; }
+}
+
+/* Пасхалка: секретное сообщение */
+.secret-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(9, 13, 23, 0.55);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: secret-fade 0.35s ease;
+}
+.secret-card {
+  max-width: 26rem;
+  animation: secret-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.secret-emoji { font-size: 2.1rem; }
+.secret-title {
+  margin-top: 0.8rem;
+  font-size: 1.7rem;
+  font-weight: 500;
+}
+.secret-text {
+  margin-top: 0.9rem;
+  font-size: 1.28rem;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--ink-soft);
+  transition: color 1.4s ease;
+}
+@keyframes secret-fade { from { opacity: 0; } }
+@keyframes secret-pop {
+  from { opacity: 0; transform: translateY(16px) scale(0.95); }
+}
+
+/* Доступность: меньше движения */
+@media (prefers-reduced-motion: reduce) {
+  .star, .clock-heart { animation: none; }
+  .hug-heart { animation: none; display: none; }
+  .secret-overlay, .secret-card { animation: none; }
+  .fade, .backdrop, .stars, .app, .card, .btn { transition-duration: 0.01ms; }
+}
